@@ -40,5 +40,6 @@ class base_Model(nn.Module):
         x = self.conv_block3(x)
 
         x_flat = x.reshape(x.shape[0], -1)
+        # print(x_flat.shape)
         logits = self.logits(x_flat)
         return logits, x
