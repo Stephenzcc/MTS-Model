@@ -63,5 +63,4 @@ def data_generator(data_path, configs, training_mode):
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=configs.batch_size,
                                               shuffle=False, drop_last=False,
                                               num_workers=0)
-
     return train_loader, valid_loader, test_loader

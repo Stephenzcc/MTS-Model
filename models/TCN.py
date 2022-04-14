@@ -14,7 +14,7 @@ class Chomp1d(nn.Module):
         其实这就是一个裁剪的模块，裁剪多出来的padding
         tensor.contiguous()会返回有连续内存的相同张量
         有些tensor并不是占用一整块内存，而是由不同的数据块组成
-        tensor的view()操作依赖于内存是整块的，这时只需要执行
+        tensor的view()操作依赖于内存是整块的，这时只需要执行    
         contiguous()函数，就是把tensor变成在内存中连续分布的形式
         本函数主要是增加padding方式对卷积后的张量做切边而实现因果卷积
         """

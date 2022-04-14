@@ -1,5 +1,5 @@
 from torch import nn
-from .TCN import TCN
+from .TCN import TemporalConvNet
 
 
 class base_Model(nn.Module):
@@ -30,13 +30,17 @@ class base_Model(nn.Module):
             nn.MaxPool1d(kernel_size=2, stride=2, padding=1),
         )
 
+        self.tcn = TemporalConvNet(configs.input_channels, configs)
+
         model_output_dim = configs.features_len
         self.logits = nn.Linear(
             model_output_dim * configs.final_out_channels, configs.num_classes)
 
     def forward(self, x_in):
         x = self.conv_block1(x_in)
+        # print(x.shape)
         x = self.conv_block2(x)
+        # print(x.shape)
         x = self.conv_block3(x)
 
         x_flat = x.reshape(x.shape[0], -1)
