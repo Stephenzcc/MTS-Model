@@ -2,22 +2,33 @@ class Config(object):
     def __init__(self):
         # model configs
         self.input_channels = 2
-        self.kernel_size = 4
+        self.kernel_size = 3
         self.stride = 1
         self.final_out_channels = 128
-        self.d = [1, 2, 4]
+        self.dilations = [32, 64, 64, 64]
+
+        self.d_input = 8
+        self.d_model = 2
+        self.d_output = 128
+        self.q = 4
+        self.v = 4
+        self.h = 4
+        self.N = 4
+        self.attention_size = 3
+        self.chunk_mode = None
+        self.pe = "regular"
 
         self.num_classes = 10
         self.dropout = 0.35
-        self.features_len = 3
+        self.features_len = 4
 
         # training configs
-        self.num_epoch = 40
+        self.num_epoch = 80
 
         # optimizer parameters
         self.beta1 = 0.9
         self.beta2 = 0.99
-        self.lr = 3e-4
+        self.lr = 1e-3
 
         # data parameters
         self.drop_last = True

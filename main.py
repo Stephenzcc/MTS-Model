@@ -25,7 +25,7 @@ parser.add_argument('--seed', default=0, type=int,
                     help='seed value')
 parser.add_argument('--training_mode', default='self_supervised', type=str,
                     help='Modes of choice: random_init, supervised, self_supervised, fine_tune, train_linear')
-parser.add_argument('--selected_dataset', default='ACSF1', type=str,
+parser.add_argument('--selected_dataset', default='HAR', type=str,
                     help='Dataset of choice: sleepEDF, HAR, Epilepsy, pFD')
 parser.add_argument('--logs_save_dir', default='experiments_logs', type=str,
                     help='saving directory')
@@ -141,7 +141,7 @@ if training_mode == "random_init":
     # Freeze everything except last layer.
     set_requires_grad(model, model_dict, requires_grad=False)
 
-
+print(sum(x.numel() for x in model.parameters()))
 model_optimizer = torch.optim.Adam(model.parameters(), lr=configs.lr, betas=(
     configs.beta1, configs.beta2), weight_decay=3e-4)
 temporal_contr_optimizer = torch.optim.Adam(temporal_contr_model.parameters(
