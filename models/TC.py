@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
+
+
 from .attention import Seq_Transformer
 
 
@@ -25,9 +27,10 @@ class TC(nn.Module):
 
         self.seq_transformer = Seq_Transformer(
             patch_size=self.num_channels, dim=configs.TC.hidden_dim, depth=4, heads=4, mlp_dim=64)
+        # self.seq_transformer = RTransformer(d_model=self.num_channels, rnn_type='GRU', ksize=6, n_level=3, n=1, h=4, dropout=configs.dropout)
 
     def forward(self, features_aug1, features_aug2):
-        # print(features_aug1.shape, features_aug2.shape)
+        # print(features_aug1, features_aug2)
         z_aug1 = features_aug1  # features are (batch_size, #channels, seq_len)
         seq_len = z_aug1.shape[2]
         z_aug1 = z_aug1.transpose(1, 2)
@@ -37,10 +40,12 @@ class TC(nn.Module):
 
         batch = z_aug1.shape[0]
         # randomly pick time stamps
+        # print(seq_len, self.timestep)
+        # 生成0到（序列长度-timestep）的随机数
         t_samples = torch.randint(
             seq_len - self.timestep, size=(1,)).long().to(self.device)
-
         nce = 0  # average over timestep and batch
+        # (timestep, batch, 特征长度) 第一维度每个变量是要预测的下一个时间点
         encode_samples = torch.empty(
             (self.timestep, batch, self.num_channels)).float().to(self.device)
         # for i in np.arange(1, self.timestep + 1):
@@ -51,7 +56,7 @@ class TC(nn.Module):
             encode_samples[i - 1] = z_aug2[:, t_samples +
                                            i, :].view(batch, self.num_channels)
         forward_seq = z_aug1[:, :t_samples + 1, :]
-
+        # print(forward_seq.shape)
         c_t = self.seq_transformer(forward_seq)
 
         pred = torch.empty(

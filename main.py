@@ -3,12 +3,13 @@ import os
 import numpy as np
 from datetime import datetime
 import argparse
-from utils import _logger, set_requires_grad
+from utils import _logger, save_Feature, set_requires_grad
 from dataloader.dataloader import data_generator
-from trainer.trainer import Trainer, model_evaluate
+from trainer.trainer import Trainer, model_evaluate, model_use
 from models.TC import TC
 from utils import _calc_metrics, copy_Files
 from models.model import base_Model
+
 # Args selections
 start_time = datetime.now()
 
@@ -24,7 +25,7 @@ parser.add_argument('--run_description', default='run1', type=str,
 parser.add_argument('--seed', default=0, type=int,
                     help='seed value')
 parser.add_argument('--training_mode', default='self_supervised', type=str,
-                    help='Modes of choice: random_init, supervised, self_supervised, fine_tune, train_linear')
+                    help='Modes of choice: random_init, supervised, self_supervised, fine_tune, train_linear, use')
 parser.add_argument('--selected_dataset', default='HAR', type=str,
                     help='Dataset of choice: sleepEDF, HAR, Epilepsy, pFD')
 parser.add_argument('--logs_save_dir', default='experiments_logs', type=str,
@@ -112,8 +113,7 @@ if training_mode == "train_linear" or "tl" in training_mode:
     model_dict = model.state_dict()
 
     # 1. filter out unnecessary keys
-    pretrained_dict = {k: v for k,
-                       v in pretrained_dict.items() if k in model_dict}
+    pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
 
     # delete these parameters (Ex: the linear layer at the end)
     del_list = ['logits']
@@ -141,6 +141,31 @@ if training_mode == "random_init":
     # Freeze everything except last layer.
     set_requires_grad(model, model_dict, requires_grad=False)
 
+if training_mode == "use":
+    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description,
+                             run_description, f"self_supervised_seed_{SEED}", "saved_models"))
+    chkpoint = torch.load(os.path.join(
+        load_from, "ckp_last.pt"), map_location=device)
+    pretrained_dict = chkpoint["model_state_dict"]
+    model_dict = model.state_dict()
+
+    # 1. filter out unnecessary keys
+    pretrained_dict = {k: v for k,
+                       v in pretrained_dict.items() if k in model_dict}
+
+    # delete these parameters (Ex: the linear layer at the end)
+    del_list = ['logits']
+    pretrained_dict_copy = pretrained_dict.copy()
+    for i in pretrained_dict_copy.keys():
+        for j in del_list:
+            if j in i:
+                del pretrained_dict[i]
+
+    model_dict.update(pretrained_dict)
+    model.load_state_dict(model_dict)
+    # Freeze everything except last layer.
+    set_requires_grad(model, pretrained_dict, requires_grad=False)
+
 print(sum(x.numel() for x in model.parameters()))
 model_optimizer = torch.optim.Adam(model.parameters(), lr=configs.lr, betas=(
     configs.beta1, configs.beta2), weight_decay=3e-4)
@@ -151,14 +176,20 @@ if training_mode == "self_supervised":  # to do it only once
     copy_Files(os.path.join(logs_save_dir, experiment_description,
                run_description), data_type)
 # Trainer
-Trainer(model, temporal_contr_model, model_optimizer, temporal_contr_optimizer, train_dl,
+if training_mode != "use":
+    Trainer(model, temporal_contr_model, model_optimizer, temporal_contr_optimizer, train_dl,
         valid_dl, test_dl, device, logger, configs, experiment_log_dir, training_mode)
 
-if training_mode != "self_supervised":
+if training_mode != "self_supervised" and training_mode != "use":
     # Testing
     outs = model_evaluate(model, temporal_contr_model,
                           test_dl, device, training_mode)
     total_loss, total_acc, pred_labels, true_labels = outs
     _calc_metrics(pred_labels, true_labels, experiment_log_dir, args.home_path)
+
+if training_mode == "use":
+    raw, outs, rawLabel = model_use(model, temporal_contr_model,
+                          train_dl, device, training_mode)
+    save_Feature(data_type, raw, outs, rawLabel)
 
 logger.debug(f"Training time is : {datetime.now()-start_time}")

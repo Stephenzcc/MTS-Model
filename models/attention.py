@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange, repeat
+from models.RTransformer import RTransformer
+from models.Informer.models.informer import Informer
 
 
 ########################################################################################
@@ -98,6 +100,8 @@ class Seq_Transformer(nn.Module):
         self.patch_to_embedding = nn.Linear(patch_dim, dim)
         self.c_token = nn.Parameter(torch.randn(1, 1, dim))
         self.transformer = Transformer(dim, depth, heads, mlp_dim, dropout)
+        # self.transformer = Informer()
+        # self.transformer = RTransformer(d_model=dim, rnn_type='LSTM', ksize=8, n_level=4, n=1, h=4, dropout=dropout)
         self.to_c_token = nn.Identity()
 
 
@@ -106,6 +110,9 @@ class Seq_Transformer(nn.Module):
         b, n, _ = x.shape
         c_tokens = repeat(self.c_token, '() n d -> b n d', b=b)
         x = torch.cat((c_tokens, x), dim=1)
+        # print(x.shape)
         x = self.transformer(x)
+        # print(x.shape)
         c_t = self.to_c_token(x[:, 0])
+        # print(c_t.shape)
         return c_t

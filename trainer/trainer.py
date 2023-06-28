@@ -1,10 +1,12 @@
 from models.loss import NTXentLoss
+from torch.nn import MSELoss
 import torch.nn.functional as F
 import torch.nn as nn
 import torch
 import numpy as np
 import os
 import sys
+from torchcam.methods import SmoothGradCAMpp
 
 sys.path.append("..")
 
@@ -56,20 +58,25 @@ def model_train(model, temporal_contr_model, model_optimizer, temp_cont_optimize
     total_acc = []
     model.train()
     temporal_contr_model.train()
+    flag = True
     for batch_idx, (data, labels, aug1, aug2) in enumerate(train_loader):
         # send to device
         data, labels = data.float().to(device), labels.long().to(device)
         aug1, aug2 = aug1.float().to(device), aug2.float().to(device)
-
         # optimizer
         model_optimizer.zero_grad()
         temp_cont_optimizer.zero_grad()
 
         if training_mode == "self_supervised":
             # print('输入', aug1.shape, aug2.shape)
-            predictions1, features1 = model(aug1)
-            predictions2, features2 = model(aug2)
-            # print('输出', features1.shape, features2.shape)
+            # 加decoder
+            predictions1, features1, reduc1 = model(aug1)
+            predictions2, features2, reduc2 = model(aug2)
+
+            # # 不加decoder
+            # predictions1, features1 = model(aug1)
+            # predictions2, features2 = model(aug2)
+            
             # normalize projection feature vectors
             features1 = F.normalize(features1, dim=1)
             features2 = F.normalize(features2, dim=1)
@@ -78,10 +85,15 @@ def model_train(model, temporal_contr_model, model_optimizer, temp_cont_optimize
                 features1, features2)
             temp_cont_loss2, temp_cont_lstm_feat2 = temporal_contr_model(
                 features2, features1)
-
+            
+            loss_mse = MSELoss()
+            loss_kl = nn.KLDivLoss()
             # normalize projection feature vectors
             zis = temp_cont_lstm_feat1
             zjs = temp_cont_lstm_feat2
+
+            norm_data = F.normalize(data, dim=1)
+            norm_reduc1 = F.normalize(reduc1, dim=1)
 
         else:
             output = model(data)
@@ -90,14 +102,22 @@ def model_train(model, temporal_contr_model, model_optimizer, temp_cont_optimize
         if training_mode == "self_supervised":
             lambda1 = 1
             lambda2 = 0.7
+            lambda3 = 1
             nt_xent_criterion = NTXentLoss(device, config.batch_size, config.Context_Cont.temperature,
                                            config.Context_Cont.use_cosine_similarity)
 
-            loss = (temp_cont_loss1 + temp_cont_loss2) * \
-                lambda1 + nt_xent_criterion(zis, zjs) * lambda2
+            # 加decoder
+            restructure_loss = loss_mse(norm_data, norm_reduc1)
+            # if batch_idx == 0:
+            #     print('各loss数量级', temp_cont_loss1 + temp_cont_loss2, nt_xent_criterion(zis, zjs), restructure_loss)
+            loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2 + restructure_loss * lambda3
+
+            # # 不加decoder
+            # loss = (temp_cont_loss1 + temp_cont_loss2) * lambda1 + nt_xent_criterion(zis, zjs) * lambda2
 
         else:  # supervised training or fine tuining
-            predictions, features = output
+            predictions, features, _ = output
+            # predictions, features = output
             loss = criterion(predictions, labels)
             total_acc.append(
                 labels.eq(predictions.detach().argmax(dim=1)).float().mean())
@@ -138,7 +158,8 @@ def model_evaluate(model, temporal_contr_model, test_dl, device, training_mode):
 
             # compute loss
             if training_mode != "self_supervised":
-                predictions, features = output
+                predictions, features, _ = output
+                # predictions, features = output
                 loss = criterion(predictions, labels)
                 total_acc.append(
                     labels.eq(predictions.detach().argmax(dim=1)).float().mean())
@@ -160,3 +181,30 @@ def model_evaluate(model, temporal_contr_model, test_dl, device, training_mode):
     else:
         total_acc = torch.tensor(total_acc).mean()  # average acc
     return total_loss, total_acc, outs, trgs
+
+def model_use(model, temporal_contr_model, test_dl, device, training_mode):
+    model.eval()
+    temporal_contr_model.eval()
+    raw = []
+    rawLabel = []
+    res = []
+    
+
+    with torch.no_grad():
+        for data, labels, _, _ in test_dl:
+            data, labels = data.float().to(device), labels.long().to(device)
+
+            output = model(data)
+
+            if training_mode == "use":
+                # 降维
+                # raw.append(torch.squeeze(data.reshape(data.shape[0], -1)).cpu().numpy())
+                # 原始数据
+                raw.append(torch.squeeze(data).cpu().numpy())
+                rawLabel.append(torch.squeeze(labels.reshape(labels.shape[0], -1)).cpu().numpy().tolist())
+                predictions, features, _ = output
+                # predictions, features = output
+                features = torch.squeeze(features.reshape(features.shape[0], -1))
+                # features = torch.squeeze(features)
+                res.append(features.cpu().numpy())
+    return raw, res, rawLabel

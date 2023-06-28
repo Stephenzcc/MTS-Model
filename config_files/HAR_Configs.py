@@ -1,14 +1,15 @@
 class Config(object):
     def __init__(self):
+        self.seq_length = 128
         # model configs
         self.input_channels = 9
-        self.kernel_size = 8
+        self.kernel_size = 2
         self.stride = 1
         self.final_out_channels = 128
 
         self.num_classes = 6
         self.dropout = 0.35
-        self.features_len = 18
+        self.features_len = 17 #17
 
         # training configs
         self.num_epoch = 40

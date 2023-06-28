@@ -1,17 +1,18 @@
 class Config(object):
     def __init__(self):
+        self.seq_length = 1197
         # model configs
         self.input_channels = 6
-        self.kernel_size = 5
-        self.stride = 2
-        self.final_out_channels = 128
+        self.kernel_size = 16
+        self.stride = 4
+        self.final_out_channels = 256
 
         self.num_classes = 12
         self.dropout = 0.35
-        self.features_len = 76
+        self.features_len = 20
 
         # training configs
-        self.num_epoch = 40
+        self.num_epoch = 200
 
         # optimizer parameters
         self.beta1 = 0.9
@@ -29,9 +30,9 @@ class Config(object):
 
 class augmentations(object):
     def __init__(self):
-        self.jitter_scale_ratio = 1.1
-        self.jitter_ratio = 0.8
-        self.max_seg = 2
+        self.jitter_scale_ratio = 1.2
+        self.jitter_ratio = 1.2
+        self.max_seg = 10
 
 
 class Context_Cont_configs(object):
@@ -42,5 +43,5 @@ class Context_Cont_configs(object):
 
 class TC(object):
     def __init__(self):
-        self.hidden_dim = 80
-        self.timesteps = 20
+        self.hidden_dim = 100
+        self.timesteps = 10

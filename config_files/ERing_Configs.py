@@ -1,9 +1,10 @@
 class Config(object):
     def __init__(self):
+        self.seq_length = 65
         # model configs
         self.input_channels = 4
-        self.kernel_size = 7
-        self.stride = 2
+        self.kernel_size = 8
+        self.stride = 1
         self.final_out_channels = 128
 
         self.num_classes = 6
@@ -11,7 +12,7 @@ class Config(object):
         self.features_len = 5
 
         # training configs
-        self.num_epoch = 40
+        self.num_epoch = 140
 
         # optimizer parameters
         self.beta1 = 0.9
@@ -43,4 +44,4 @@ class Context_Cont_configs(object):
 class TC(object):
     def __init__(self):
         self.hidden_dim = 60
-        self.timesteps = 3
+        self.timesteps = 2
